@@ -1,0 +1,18 @@
+version: 1
+factor_windows:
+  short_ma: 20
+  long_ma: 60
+  momentum_short: 5
+  momentum_medium: 20
+  drawdown: 60
+weights:
+  trend: 0.30
+  momentum: 0.25
+  volume: 0.15
+  relative_strength: 0.20
+  risk: 0.10
+thresholds:
+  data_delay_minutes: 15
+  volume_ratio_min: 1.20
+  max_single_position_pct: 20.0
+  max_direction_position_pct: 40.0

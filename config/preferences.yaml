@@ -1,0 +1,14 @@
+version: 1
+timezone: Asia/Shanghai
+trading_sessions:
+  morning:
+    start: "09:30"
+    end: "11:30"
+  afternoon:
+    start: "13:00"
+    end: "15:00"
+daily_report_time: "14:55"
+mock_mode: true
+display:
+  show_risk_notice: true
+  compact_table: true

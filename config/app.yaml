@@ -1,0 +1,17 @@
+app:
+  name: stock-wave-assistant
+  mode: mock
+
+providers:
+  market: mock
+  llm: codex_cli
+
+database:
+  path: ./data/app.db
+
+codex:
+  cli_path: ""
+  model: gpt-5.5
+  timeout_seconds: 120
+  sandbox_mode: read-only
+  enable_cli: false

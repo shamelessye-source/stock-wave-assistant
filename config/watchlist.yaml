@@ -1,0 +1,106 @@
+version: 1
+stocks:
+  - symbol: ""
+    name: 中天科技
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 通信与电力基础设施
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 光迅科技
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 光通信
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 福晶科技
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 光学与激光
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 东山精密
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 电子制造
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 科瑞技术
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 智能制造
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 长电科技
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 半导体封测
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 通富微电
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 半导体封测
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
+  - symbol: ""
+    name: 快克智能
+    market: ""
+    enabled: true
+    group: 核心观察
+    direction: 智能装备
+    watch_reason: 用户初始自选股，等待补充代码后纳入计算
+    core_logic: 中长期观察
+    risk_points:
+      - 数据未补全
+    status: 数据不足
+    tags:
+      - 初始自选
