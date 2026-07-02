@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -52,3 +54,19 @@ class PrecloseReportResponse(BaseModel):
     position_review_candidates: list[ReportListItemResponse]
     data_quality_notes: list[str]
     generated_at: str
+
+
+class PrecloseReportRunRequest(BaseModel):
+    as_of: str | None = None
+    force: bool = False
+
+
+class PrecloseReportRunResponse(BaseModel):
+    status: str
+    report_id: str
+    report_type: str
+    as_of: str
+    file_name: str
+    relative_path: str
+    skipped_reason: str | None = None
+    report: dict[str, Any] | None = None

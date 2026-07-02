@@ -10,6 +10,7 @@ import yaml
 
 DEFAULT_CODEX_CLI_PATH = Path("codex")
 DEFAULT_DATABASE_PATH = Path("data/app.db")
+DEFAULT_REPORT_DIR = Path("data/reports")
 
 
 class ConfigError(RuntimeError):
@@ -29,6 +30,7 @@ class AppSettings:
     enable_codex_cli: bool
     database_path: Path
     cache_dir: Path
+    report_dir: Path
     config_dir: Path
 
     @property
@@ -61,6 +63,9 @@ class AppSettings:
             },
             "cache": {
                 "configured": bool(str(self.cache_dir)),
+            },
+            "reports": {
+                "configured": bool(str(self.report_dir)),
             },
         }
 
@@ -110,6 +115,7 @@ def load_settings(
         ),
         database_path=_database_path(env_map, app_config),
         cache_dir=_cache_dir(env_map, app_config),
+        report_dir=_report_dir(env_map, app_config),
         config_dir=config_root,
     )
 
@@ -147,6 +153,15 @@ def _cache_dir(env: Mapping[str, str], config: Mapping[str, Any]) -> Path:
     if configured:
         return Path(str(configured))
     return Path("data/cache")
+
+
+def _report_dir(env: Mapping[str, str], config: Mapping[str, Any]) -> Path:
+    if env.get("REPORT_DIR"):
+        return Path(env["REPORT_DIR"])
+    configured = _nested_get(config, "reports.dir")
+    if configured:
+        return Path(str(configured))
+    return DEFAULT_REPORT_DIR
 
 
 def _sqlite_url_to_path(value: str) -> Path:

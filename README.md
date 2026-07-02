@@ -14,6 +14,7 @@
 - 组合风控：展示持仓市值、盈亏、集中度和数据完整性状态。
 - 波段状态：输出允许状态标签、分项分数和原因。
 - 14:55 报告：生成结构化 JSON，支持 `as_of` 测试参数。
+- 14:55 run-once：可手动触发一次报告生成并写入本地 `REPORT_DIR`。
 - Codex CLI 解释层：默认 fake provider；真实模式需要显式启用。
 - 本地 Web MVP：提供总览、指标、风控、波段、台账、报告和设置/自检页面。
 
@@ -24,6 +25,7 @@
 - 不生成订单，不做自动交易。
 - 不默认接真实 AkShare 数据源；真实模式必须由用户显式开启。
 - 不做定时调度；14:55 报告当前通过 API 或页面手动触发。
+- 不默认启动后台常驻 scheduler；第一版只提供 run-once 入口。
 - 不让 Codex 或任何 LLM 参与行情、指标、盈亏、风控或波段状态计算。
 - 不提供个股推介、直接交易指令、预设价位或收益承诺。
 
@@ -57,6 +59,13 @@ py -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 Invoke-RestMethod http://127.0.0.1:8000/api/health
 Invoke-RestMethod http://127.0.0.1:8000/api/config/status
 Invoke-RestMethod "http://127.0.0.1:8000/api/reports/preclose?as_of=2026-07-01T14:55:00"
+Invoke-RestMethod -Method Post -ContentType "application/json" -Body '{"as_of":"2026-07-01T14:55:00"}' http://127.0.0.1:8000/api/reports/preclose/run-once
+```
+
+本地 run-once CLI：
+
+```powershell
+py -m app.cli.preclose_report --as-of 2026-07-01T14:55:00
 ```
 
 ## 启动前端
@@ -93,6 +102,7 @@ rg -n ($terms -join "|") app web tests config docs README.md
 - `config/factors.yaml`：基础指标窗口、权重和阈值。
 
 SQLite 默认路径是项目相对路径 `./data/app.db`。该目录已被 `.gitignore` 忽略。
+报告默认写入项目相对路径 `./data/reports`。该目录已被 `.gitignore` 忽略。
 
 ## Codex CLI 模式
 

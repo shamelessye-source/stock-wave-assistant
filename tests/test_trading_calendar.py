@@ -27,3 +27,27 @@ def test_evaluate_market_session_marks_break_and_after_close() -> None:
 
     assert lunch.status == "lunch_break"
     assert after_close.status == "after_close"
+
+
+def test_evaluate_market_session_uses_configured_closed_dates() -> None:
+    status = evaluate_market_session(
+        datetime.fromisoformat("2026-07-01T14:55:00"),
+        {"market": {"closed_dates": ["2026-07-01"]}},
+    )
+
+    assert status.status == "non_trading_day"
+    assert status.is_trading_day is False
+    assert status.is_preclose_time is False
+    assert status.calendar_mode == "local_config"
+
+
+def test_evaluate_market_session_uses_configured_extra_open_dates() -> None:
+    status = evaluate_market_session(
+        datetime.fromisoformat("2026-07-04T14:55:00"),
+        {"market": {"extra_open_dates": ["2026-07-04"]}},
+    )
+
+    assert status.status == "preclose"
+    assert status.is_trading_day is True
+    assert status.is_preclose_time is True
+    assert status.calendar_mode == "local_config"

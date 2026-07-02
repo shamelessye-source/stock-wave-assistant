@@ -28,7 +28,18 @@ def evaluate_market_session(
     afternoon_end = _config_time(config, "trading_sessions.afternoon.end", "15:00")
     report_time = _config_time(config, "daily_report_time", "14:55")
 
-    is_trading_day = as_of.weekday() < 5
+    as_of_date = as_of.date().isoformat()
+    closed_dates = _config_text_set(config, "market.closed_dates")
+    extra_open_dates = _config_text_set(config, "market.extra_open_dates")
+    if as_of_date in closed_dates:
+        is_trading_day = False
+        calendar_mode = "local_config"
+    elif as_of_date in extra_open_dates:
+        is_trading_day = True
+        calendar_mode = "local_config"
+    else:
+        is_trading_day = as_of.weekday() < 5
+        calendar_mode = "weekday_fallback"
     as_time = as_of.time().replace(microsecond=0)
     is_preclose = (
         is_trading_day
@@ -63,8 +74,8 @@ def evaluate_market_session(
         is_trading_day=is_trading_day,
         is_preclose_time=is_preclose,
         session=session,
-        calendar_mode="weekday_fallback",
-        as_of_date=as_of.date().isoformat(),
+        calendar_mode=calendar_mode,
+        as_of_date=as_of_date,
         as_of_time=as_time.isoformat(),
         report_time=_format_time(report_time),
     )
@@ -86,6 +97,15 @@ def _nested_get(config: Mapping[str, object], dotted_key: str) -> object | None:
             return None
         current = current[part]
     return current
+
+
+def _config_text_set(config: Mapping[str, object], dotted_key: str) -> set[str]:
+    value = _nested_get(config, dotted_key)
+    if value is None:
+        return set()
+    if not isinstance(value, list):
+        return {str(value)}
+    return {str(item) for item in value}
 
 
 def _format_time(value: time) -> str:

@@ -16,6 +16,7 @@ def test_load_settings_uses_safe_defaults(tmp_path: Path) -> None:
     assert settings.codex_sandbox_mode == "read-only"
     assert settings.enable_codex_cli is False
     assert settings.database_path == Path("data/app.db")
+    assert settings.report_dir == Path("data/reports")
     assert settings.is_mock_mode is True
 
 
@@ -31,6 +32,7 @@ def test_load_settings_allows_environment_overrides(tmp_path: Path) -> None:
             "CODEX_SANDBOX_MODE": "read-only",
             "ENABLE_CODEX_CLI": "true",
             "DATABASE_PATH": str(tmp_path / "custom.db"),
+            "REPORT_DIR": str(tmp_path / "reports"),
         },
     )
 
@@ -40,6 +42,7 @@ def test_load_settings_allows_environment_overrides(tmp_path: Path) -> None:
     assert settings.codex_timeout_seconds == 45
     assert settings.enable_codex_cli is True
     assert settings.database_path == tmp_path / "custom.db"
+    assert settings.report_dir == tmp_path / "reports"
     assert settings.is_mock_mode is True
 
 
