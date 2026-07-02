@@ -9,6 +9,10 @@ dependencies = [
     "uvicorn>=0.42.0",
 ]
 
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project.optional-dependencies]
 akshare = [
     "akshare>=1.17.0",
@@ -21,3 +25,8 @@ test = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["web*", "docs*", "config*", "tests*", "data*", "node_modules*"]
