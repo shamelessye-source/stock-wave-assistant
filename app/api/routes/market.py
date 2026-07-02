@@ -2,7 +2,8 @@ from dataclasses import asdict
 
 from fastapi import APIRouter
 
-from app.data.mock_market_provider import MockMarketProvider
+from app.core.config import load_settings
+from app.data.market_provider import create_market_provider
 
 
 router = APIRouter()
@@ -10,5 +11,5 @@ router = APIRouter()
 
 @router.get("/api/market/snapshot")
 def market_snapshot() -> dict[str, object]:
-    snapshot = MockMarketProvider().snapshot()
+    snapshot = create_market_provider(load_settings()).snapshot()
     return asdict(snapshot)

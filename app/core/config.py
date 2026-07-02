@@ -28,6 +28,7 @@ class AppSettings:
     codex_sandbox_mode: str
     enable_codex_cli: bool
     database_path: Path
+    cache_dir: Path
     config_dir: Path
 
     @property
@@ -57,6 +58,9 @@ class AppSettings:
             "database": {
                 "engine": "sqlite",
                 "configured": bool(str(self.database_path)),
+            },
+            "cache": {
+                "configured": bool(str(self.cache_dir)),
             },
         }
 
@@ -105,6 +109,7 @@ def load_settings(
             "ENABLE_CODEX_CLI",
         ),
         database_path=_database_path(env_map, app_config),
+        cache_dir=_cache_dir(env_map, app_config),
         config_dir=config_root,
     )
 
@@ -133,6 +138,15 @@ def _database_path(env: Mapping[str, str], config: Mapping[str, Any]) -> Path:
     if configured_url:
         return _sqlite_url_to_path(str(configured_url))
     return DEFAULT_DATABASE_PATH
+
+
+def _cache_dir(env: Mapping[str, str], config: Mapping[str, Any]) -> Path:
+    if env.get("CACHE_DIR"):
+        return Path(env["CACHE_DIR"])
+    configured = _nested_get(config, "cache.dir")
+    if configured:
+        return Path(str(configured))
+    return Path("data/cache")
 
 
 def _sqlite_url_to_path(value: str) -> Path:

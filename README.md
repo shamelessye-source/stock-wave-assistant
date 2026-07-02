@@ -8,6 +8,7 @@
 
 - 自选股配置：读取 `config/watchlist.yaml`。
 - Mock 行情：默认生成稳定日线样例，不访问网络。
+- AkShare adapter：可选真实日线数据源，必须显式开启。
 - 基础指标：MA20、MA60、5/10/20 日动量、最大回撤、简化 ATR、成交量比值。
 - 手动台账：记录中性方向的成交事实，使用移动平均成本法计算基础盈亏。
 - 组合风控：展示持仓市值、盈亏、集中度和数据完整性状态。
@@ -21,7 +22,7 @@
 - 不连接券商账户。
 - 不保存交易密码、资金账号或其他交易凭据。
 - 不生成订单，不做自动交易。
-- 不接真实 AkShare 数据源；这是后续任务。
+- 不默认接真实 AkShare 数据源；真实模式必须由用户显式开启。
 - 不做定时调度；14:55 报告当前通过 API 或页面手动触发。
 - 不让 Codex 或任何 LLM 参与行情、指标、盈亏、风控或波段状态计算。
 - 不提供个股推介、直接交易指令、预设价位或收益承诺。
@@ -37,6 +38,12 @@ Copy-Item .env.example .env
 ```
 
 默认配置已经是 mock/fake 模式。clone 后不需要真实密钥，也不需要真实 Codex CLI，即可运行 MVP。
+
+如需手动验证真实 AkShare 数据源，可安装可选 extra：
+
+```powershell
+py -m pip install -e ".[akshare,test]"
+```
 
 ## 启动后端
 
@@ -114,7 +121,19 @@ CODEX_CLI_PATH=<path-to-codex-cli>
 
 当前默认数据源是 mock provider。它从 `config/watchlist.yaml` 读取名称，使用固定 seed 生成稳定样例，并保留历史不足、成交量异常、价格缺失等降级场景。
 
-真实 AkShare provider 会在后续任务通过 adapter 接入。即使后续接入真实数据，默认测试仍应保持 mock/fake。
+真实 AkShare provider 已通过 adapter 接入，但默认关闭。启用前需要：
+
+1. 在 `config/watchlist.yaml` 中填写股票代码，例如 `000001.SZ` 或 `600000.SH`。
+2. 安装可选依赖：`py -m pip install -e ".[akshare,test]"`。
+3. 设置 `MARKET_PROVIDER=akshare`。
+4. 启动后端并检查：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/market/snapshot
+Invoke-RestMethod http://127.0.0.1:8000/api/indicators/snapshot
+```
+
+如果代码为空、AkShare 缺失、网络失败、字段变化或返回空数据，接口会返回结构化降级状态。默认测试仍保持 mock/fake，不访问网络。
 
 ## 文档
 

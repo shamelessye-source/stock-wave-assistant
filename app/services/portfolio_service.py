@@ -9,7 +9,7 @@ from typing import Any
 import yaml
 
 from app.core.config import AppSettings, load_watchlist_config
-from app.data.mock_market_provider import MockMarketProvider
+from app.data.market_provider import create_market_provider
 from app.domain.indicators import build_indicator_snapshot
 from app.domain.pnl import PnlSummary, PnlTrade, calculate_pnl_summary
 from app.domain.report_builder import PrecloseReport, build_preclose_report
@@ -83,7 +83,7 @@ def build_current_preclose_report(
 
 
 def build_indicator_snapshots(settings: AppSettings) -> list[IndicatorSnapshot]:
-    provider = MockMarketProvider(settings.config_dir / "watchlist.yaml")
+    provider = create_market_provider(settings)
     return [
         build_indicator_snapshot(instrument, provider.daily_bars_for(instrument))
         for instrument in provider.load_instruments()
@@ -91,9 +91,11 @@ def build_indicator_snapshots(settings: AppSettings) -> list[IndicatorSnapshot]:
 
 
 def mock_current_prices(settings: AppSettings) -> dict[str, Decimal]:
-    provider = MockMarketProvider(settings.config_dir / "watchlist.yaml")
+    provider = create_market_provider(settings)
     prices: dict[str, Decimal] = {}
     for item in provider.snapshot().items:
+        if not item.bars:
+            continue
         latest_close = item.bars[-1].close
         if latest_close is not None:
             prices[item.name] = Decimal(str(latest_close))

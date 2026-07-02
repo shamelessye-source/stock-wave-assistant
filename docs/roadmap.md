@@ -13,11 +13,12 @@
 - Task 7：Codex CLI provider 和 fake 解释层。
 - Task 8：本地 Web MVP。
 - Task 9：测试收口、README 和文档整理。
+- Task 10：AkShare adapter 和本地缓存。
 
 ## 近期待办
 
 - 增加更清晰的前端 smoke 脚本，便于 CI 或本地一键验证。
-- 增加真实 AkShare adapter，但默认测试继续使用 mock。
+- 扩展 AkShare adapter 的真实环境 smoke 记录，但默认测试继续使用 mock/fake。
 - 增加交易日历数据文件或离线节假日配置。
 - 增加可选报告保存能力。
 - 增加更完整的配置 schema 文档和示例。
