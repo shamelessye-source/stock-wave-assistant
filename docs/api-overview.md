@@ -18,7 +18,9 @@ GET /api/market/snapshot
 GET /api/indicators/snapshot
 ```
 
-当前默认使用 mock 行情。指标快照包含名称、代码、最新交易日、最新收盘价、MA20、MA60、动量、最大回撤、ATR、成交量比值、数据状态和降级原因。
+当前默认使用 mock 行情。设置 `MARKET_PROVIDER=akshare` 后可使用 AkShare adapter；接口字段仍与 mock 行情兼容。行情快照和每个标的都包含数据状态与降级原因。
+
+指标快照包含名称、代码、最新交易日、最新收盘价、MA20、MA60、动量、最大回撤、ATR、成交量比值、数据状态和降级原因。
 
 ## 交易台账与盈亏
 

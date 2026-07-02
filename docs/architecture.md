@@ -9,13 +9,14 @@
 - SQLite：保存本地应用元信息、自选股配置映射和手动成交记录。
 - YAML + `.env`：保存用户配置和 provider 开关。
 - Mock provider：默认行情源，保证测试稳定且离线。
+- AkShare provider：可选真实日线数据源，通过 adapter 和本地缓存隔离。
 - Fake Codex provider：默认解释层，保证测试不调用真实 CLI。
 
 ## 数据流
 
 ```text
 watchlist.yaml
--> mock daily bars
+-> mock daily bars or cached AkShare daily bars
 -> indicator snapshot
 -> ledger summary
 -> risk summary
@@ -41,9 +42,20 @@ watchlist.yaml
 
 ## 外部依赖边界
 
-- AkShare 后续通过 market adapter 接入；当前默认不接。
+- AkShare 通过 market adapter 接入；当前默认不启用。
 - Codex CLI 后续可显式启用；当前默认 fake。
 - 测试不依赖真实网络、真实行情、真实交易日或真实 Codex CLI。
+
+## AkShare adapter
+
+AkShare adapter 只在 `MARKET_PROVIDER=akshare` 时启用。它负责：
+
+- 从 watchlist 读取股票代码。
+- 将 AkShare 日线字段标准化为现有 market schema。
+- 写入 `CACHE_DIR` 下的本地 JSON 缓存。
+- 在代码缺失、AkShare 缺失、网络失败、字段变化或空数据时返回结构化降级状态。
+
+代码为空时不会按名称猜测，避免把错误代码带入后续指标。
 
 ## 错误和降级
 

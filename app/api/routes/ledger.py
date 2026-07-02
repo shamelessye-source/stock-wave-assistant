@@ -6,7 +6,7 @@ from decimal import Decimal
 from fastapi import APIRouter
 
 from app.core.config import load_settings
-from app.data.mock_market_provider import MockMarketProvider
+from app.data.market_provider import create_market_provider
 from app.domain.pnl import PnlTrade, calculate_pnl_summary
 from app.schemas.ledger import (
     LedgerSummaryResponse,
@@ -59,9 +59,11 @@ def _record_to_pnl_trade(record: dict[str, object]) -> PnlTrade:
 
 
 def _mock_current_prices() -> dict[str, Decimal]:
-    provider = MockMarketProvider()
+    provider = create_market_provider(load_settings())
     prices: dict[str, Decimal] = {}
     for item in provider.snapshot().items:
+        if not item.bars:
+            continue
         latest_close = item.bars[-1].close
         if latest_close is not None:
             prices[item.name] = Decimal(str(latest_close))

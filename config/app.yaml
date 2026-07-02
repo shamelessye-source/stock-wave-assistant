@@ -9,6 +9,9 @@ providers:
 database:
   path: ./data/app.db
 
+cache:
+  dir: ./data/cache
+
 codex:
   cli_path: ""
   model: gpt-5.5

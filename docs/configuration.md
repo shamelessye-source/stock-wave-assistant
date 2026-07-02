@@ -26,6 +26,7 @@ MARKET_PROVIDER=mock
 LLM_PROVIDER=codex_cli
 ENABLE_CODEX_CLI=false
 DATABASE_PATH=./data/app.db
+CACHE_DIR=./data/cache
 ```
 
 `./data/app.db` 是项目相对路径，已被 `.gitignore` 忽略。测试会使用临时数据库，不污染真实数据目录。
@@ -72,7 +73,40 @@ daily_report_time: "14:55"
 
 当前默认数据源是 mock provider。它读取 `config/watchlist.yaml` 的名称和可选代码，使用固定 seed 生成稳定样例，并覆盖历史不足、成交量异常、价格缺失等降级场景。
 
-真实 AkShare provider 是后续任务。默认测试必须继续保持 mock/fake。
+AkShare provider 是可选真实数据 adapter。默认关闭，只有设置 `MARKET_PROVIDER=akshare` 时才会启用。启用前需要先安装可选依赖：
+
+```powershell
+py -m pip install -e ".[akshare,test]"
+```
+
+并在 `config/watchlist.yaml` 中填写股票代码。代码为空时，系统会返回 `code_missing`，不会按名称静默猜测。
+
+AkShare 日线数据会标准化为与 mock 行情一致的字段：
+
+- `trade_date`
+- `open`
+- `high`
+- `low`
+- `close`
+- `volume`
+- `amount`
+- `prev_close`
+
+本地缓存目录来自 `CACHE_DIR` 或 `config/app.yaml` 的 `cache.dir`。缓存命中时优先读取本地 JSON，避免每次启动都请求网络。
+
+真实数据模式可能遇到 AkShare 缺失、网络失败、字段变化、返回空数据或数据延迟。系统会返回结构化降级状态，不影响 mock 模式。
+
+手动 smoke：
+
+```powershell
+$env:MARKET_PROVIDER="akshare"
+$env:CACHE_DIR="./data/cache"
+py -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Invoke-RestMethod http://127.0.0.1:8000/api/market/snapshot
+Invoke-RestMethod http://127.0.0.1:8000/api/indicators/snapshot
+```
+
+默认测试必须继续保持 mock/fake，不访问网络。
 
 ## 边界扫描
 

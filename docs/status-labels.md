@@ -20,6 +20,10 @@
 - `data_insufficient`：历史或关键字段不足。
 - `price_missing`：最新价格缺失。
 - `capital_base_missing`：未配置账户总资产，系统按当前持仓市值内部占比计算。
+- `code_missing`：真实数据模式下未配置股票代码。
+- `data_empty`：真实数据源返回空数据。
+- `source_unavailable`：真实数据源不可用或网络失败。
+- `field_mismatch`：真实数据源字段与 adapter 预期不一致。
 - `non_trading_day`：非交易日。
 - `before_open`、`lunch_break`、`after_close`：交易时段外。
 
