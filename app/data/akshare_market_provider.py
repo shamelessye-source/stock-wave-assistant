@@ -96,7 +96,14 @@ class AkShareMarketProvider:
 
         normalized_symbol = _normalize_symbol(instrument.symbol)
         cache_path = self._cache_path(normalized_symbol)
-        cached = self._read_cache(cache_path)
+        cache_status = "miss"
+        cache_read_error: str | None = None
+        try:
+            cached = self._read_cache(cache_path)
+        except (json.JSONDecodeError, TypeError, ValueError, OSError) as exc:
+            cached = None
+            cache_status = "read_error"
+            cache_read_error = _cache_read_error_reason(exc)
         if cached is not None:
             return MarketSeries(
                 name=instrument.name,
@@ -117,9 +124,12 @@ class AkShareMarketProvider:
                 market=instrument.market,
                 bars=[],
                 data_status="source_unavailable",
-                degradation_reasons=[f"akshare_error:{exc}"],
+                degradation_reasons=_with_cache_error(
+                    cache_read_error,
+                    f"akshare_error:{exc}",
+                ),
                 source="akshare",
-                cache_status="miss",
+                cache_status=cache_status,
             )
 
         if not rows:
@@ -129,9 +139,12 @@ class AkShareMarketProvider:
                 market=instrument.market,
                 bars=[],
                 data_status="data_empty",
-                degradation_reasons=[f"akshare_empty:{instrument.symbol}"],
+                degradation_reasons=_with_cache_error(
+                    cache_read_error,
+                    f"akshare_empty:{instrument.symbol}",
+                ),
                 source="akshare",
-                cache_status="miss",
+                cache_status=cache_status,
             )
 
         try:
@@ -143,9 +156,12 @@ class AkShareMarketProvider:
                 market=instrument.market,
                 bars=[],
                 data_status="field_mismatch",
-                degradation_reasons=[f"akshare_field_mismatch:{exc}"],
+                degradation_reasons=_with_cache_error(
+                    cache_read_error,
+                    f"akshare_field_mismatch:{exc}",
+                ),
                 source="akshare",
-                cache_status="miss",
+                cache_status=cache_status,
             )
 
         self._write_cache(cache_path, bars)
@@ -155,7 +171,7 @@ class AkShareMarketProvider:
             market=instrument.market,
             bars=bars,
             source="akshare",
-            cache_status="miss",
+            cache_status=cache_status,
         )
 
     def _cache_path(self, normalized_symbol: str) -> Path:
@@ -166,7 +182,7 @@ class AkShareMarketProvider:
             return None
         loaded = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(loaded, list):
-            return None
+            raise ValueError("cache_root_not_list")
         return [DailyBar(**item) for item in loaded]
 
     def _write_cache(self, path: Path, bars: list[DailyBar]) -> None:
@@ -245,3 +261,17 @@ def _int_value(value: Any) -> int | None:
     if parsed is None:
         return None
     return int(parsed)
+
+
+def _cache_read_error_reason(exc: Exception) -> str:
+    if isinstance(exc, json.JSONDecodeError):
+        return "cache_read_error:invalid_json"
+    if isinstance(exc, OSError):
+        return "cache_read_error:io_error"
+    return "cache_read_error:schema_invalid"
+
+
+def _with_cache_error(cache_read_error: str | None, reason: str) -> list[str]:
+    if cache_read_error is None:
+        return [reason]
+    return [cache_read_error, reason]

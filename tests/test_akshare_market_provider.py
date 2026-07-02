@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from app.core.config import load_settings
@@ -189,6 +190,83 @@ def test_akshare_provider_uses_cache_before_network(tmp_path: Path) -> None:
     assert failing_client.calls == []
 
 
+def test_akshare_provider_recovers_from_corrupt_json_cache(tmp_path: Path) -> None:
+    watchlist_path = write_watchlist(tmp_path, symbol="000001.SZ")
+    cache_dir = tmp_path / "cache"
+    cache_path = cache_dir / "akshare" / "000001.json"
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_text("{bad json", encoding="utf-8")
+    client = FakeAkShareClient({"000001": [english_daily_row(close="11.2")]})
+
+    snapshot = AkShareMarketProvider(
+        watchlist_path=watchlist_path,
+        cache_dir=cache_dir,
+        client=client,
+    ).snapshot()
+
+    series = snapshot.items[0]
+    assert series.data_status == "ok"
+    assert series.source == "akshare"
+    assert series.cache_status == "read_error"
+    assert series.degradation_reasons == []
+    assert series.bars[0].close == 11.2
+    assert client.calls == ["000001"]
+    assert json.loads(cache_path.read_text(encoding="utf-8"))[0]["close"] == 11.2
+
+
+def test_akshare_provider_reports_cache_read_error_when_source_fails(
+    tmp_path: Path,
+) -> None:
+    watchlist_path = write_watchlist(tmp_path, symbol="000001.SZ")
+    cache_dir = tmp_path / "cache"
+    cache_path = cache_dir / "akshare" / "000001.json"
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_text("{bad json", encoding="utf-8")
+
+    snapshot = AkShareMarketProvider(
+        watchlist_path=watchlist_path,
+        cache_dir=cache_dir,
+        client=FailingAkShareClient(),
+    ).snapshot()
+
+    series = snapshot.items[0]
+    assert series.data_status == "source_unavailable"
+    assert series.source == "akshare"
+    assert series.cache_status == "read_error"
+    assert series.degradation_reasons == [
+        "cache_read_error:invalid_json",
+        "akshare_error:network down",
+    ]
+
+
+def test_akshare_provider_recovers_from_schema_incompatible_cache(
+    tmp_path: Path,
+) -> None:
+    watchlist_path = write_watchlist(tmp_path, symbol="000001.SZ")
+    cache_dir = tmp_path / "cache"
+    cache_path = cache_dir / "akshare" / "000001.json"
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_text(
+        json.dumps([{"trade_date": "2026-06-29", "close": 10.0}]),
+        encoding="utf-8",
+    )
+    client = FakeAkShareClient({"000001": [english_daily_row(close="11.4")]})
+
+    snapshot = AkShareMarketProvider(
+        watchlist_path=watchlist_path,
+        cache_dir=cache_dir,
+        client=client,
+    ).snapshot()
+
+    series = snapshot.items[0]
+    assert series.data_status == "ok"
+    assert series.source == "akshare"
+    assert series.cache_status == "read_error"
+    assert series.degradation_reasons == []
+    assert series.bars[0].close == 11.4
+    assert client.calls == ["000001"]
+
+
 def test_market_provider_factory_keeps_mock_default(tmp_path: Path) -> None:
     mock_settings = load_settings(config_dir=tmp_path, env={"MARKET_PROVIDER": "mock"})
     akshare_settings = load_settings(
@@ -219,3 +297,15 @@ stocks:
         encoding="utf-8",
     )
     return path
+
+
+def english_daily_row(close: str) -> dict[str, object]:
+    return {
+        "trade_date": "2026-06-29",
+        "open": "10.6",
+        "high": "11.6",
+        "low": "10.4",
+        "close": close,
+        "volume": "1200",
+        "amount": "12960",
+    }
