@@ -27,9 +27,10 @@ LLM_PROVIDER=codex_cli
 ENABLE_CODEX_CLI=false
 DATABASE_PATH=./data/app.db
 CACHE_DIR=./data/cache
+REPORT_DIR=./data/reports
 ```
 
-`./data/app.db` 是项目相对路径，已被 `.gitignore` 忽略。测试会使用临时数据库，不污染真实数据目录。
+`./data/app.db` 和 `./data/reports` 都是项目相对路径，已被 `.gitignore` 忽略。测试会使用临时目录，不污染真实数据目录。
 
 ## Codex CLI
 
@@ -65,9 +66,20 @@ trading_sessions:
     start: "13:00"
     end: "15:00"
 daily_report_time: "14:55"
+market:
+  closed_dates: []
+  extra_open_dates: []
 ```
 
-第一版交易日判断只使用工作日 fallback。非交易日和交易时段外会在报告中返回降级状态。
+交易日判断默认使用工作日 fallback。`market.closed_dates` 可以配置本地休市日，`market.extra_open_dates` 可以配置本地补交易日。非交易日和交易时段外不会写入 run-once 报告。
+
+14:55 run-once 报告默认写入 `REPORT_DIR`：
+
+```powershell
+py -m app.cli.preclose_report --as-of 2026-07-01T14:55:00
+```
+
+同一交易日重复触发默认返回已有报告；需要覆盖时显式加 `--force`。
 
 ## 数据源
 

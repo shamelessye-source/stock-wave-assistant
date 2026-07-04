@@ -12,6 +12,9 @@ database:
 cache:
   dir: ./data/cache
 
+reports:
+  dir: ./data/reports
+
 codex:
   cli_path: ""
   model: gpt-5.5

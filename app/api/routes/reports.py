@@ -7,11 +7,16 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import load_settings
 from app.schemas.llm import ReportExplainRequest, ReportExplainResponse
-from app.schemas.report import PrecloseReportResponse
+from app.schemas.report import (
+    PrecloseReportResponse,
+    PrecloseReportRunRequest,
+    PrecloseReportRunResponse,
+)
 from app.services.portfolio_service import (
     build_current_preclose_report,
     decimal_dataclass_to_response,
 )
+from app.services.preclose_report_run import run_preclose_report_once
 from app.services.report_explanation_service import explain_preclose_report
 
 
@@ -25,6 +30,23 @@ def preclose_report(as_of: str | None = Query(default=None)) -> dict[str, object
     return decimal_dataclass_to_response(
         build_current_preclose_report(settings, as_of_datetime)
     )
+
+
+@router.post(
+    "/api/reports/preclose/run-once",
+    response_model=PrecloseReportRunResponse,
+)
+def preclose_report_run_once(
+    payload: PrecloseReportRunRequest | None = None,
+) -> dict[str, object]:
+    settings = load_settings()
+    as_of_datetime = _parse_as_of(payload.as_of if payload else None)
+    result = run_preclose_report_once(
+        settings,
+        as_of_datetime,
+        force=payload.force if payload else False,
+    )
+    return asdict(result)
 
 
 @router.post("/api/reports/preclose/explain", response_model=ReportExplainResponse)

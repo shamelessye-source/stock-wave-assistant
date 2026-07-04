@@ -8,6 +8,9 @@ trading_sessions:
     start: "13:00"
     end: "15:00"
 daily_report_time: "14:55"
+market:
+  closed_dates: []
+  extra_open_dates: []
 mock_mode: true
 display:
   show_risk_notice: true

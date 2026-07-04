@@ -53,6 +53,7 @@ GET /api/wave/states
 ```text
 GET /api/reports/preclose
 GET /api/reports/preclose?as_of=2026-07-01T14:55:00
+POST /api/reports/preclose/run-once
 ```
 
 `as_of` 可用于测试固定时间。报告包含：
@@ -72,6 +73,17 @@ GET /api/reports/preclose?as_of=2026-07-01T14:55:00
 - `position_review_candidates`
 - `data_quality_notes`
 - `generated_at`
+
+`POST /api/reports/preclose/run-once` 会在本地执行一次 14:55 报告生成。请求体：
+
+```json
+{
+  "as_of": "2026-07-01T14:55:00",
+  "force": false
+}
+```
+
+同一交易日同一 report type 默认返回已有文件。设置 `force=true` 才会覆盖。接口只返回 `report_id`、`file_name`、`relative_path`、`status` 和报告 JSON，不返回本机绝对路径。
 
 ## 解释摘要
 

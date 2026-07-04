@@ -33,5 +33,9 @@ def test_config_status_reports_loaded_config_without_sensitive_paths(
         "engine": "sqlite",
         "configured": True,
     }
+    assert payload["reports"] == {
+        "configured": True,
+    }
     assert "codex.cmd" not in str(payload)
     assert "data/app.db" not in str(payload)
+    assert "data/reports" not in str(payload)
