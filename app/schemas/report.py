@@ -69,4 +69,5 @@ class PrecloseReportRunResponse(BaseModel):
     file_name: str
     relative_path: str
     skipped_reason: str | None = None
+    error: str | None = None
     report: dict[str, Any] | None = None

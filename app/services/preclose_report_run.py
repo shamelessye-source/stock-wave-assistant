@@ -30,6 +30,7 @@ class PrecloseReportRunResult:
     file_name: str
     relative_path: str
     skipped_reason: str | None = None
+    error: str | None = None
     report: dict[str, Any] | None = None
 
 
@@ -61,9 +62,18 @@ def run_preclose_report_once(
         )
 
     if report_path.exists() and not force:
+        try:
+            existing_report = _read_report(report_path)
+        except (json.JSONDecodeError, OSError, ValueError):
+            return PrecloseReportRunResult(
+                status="existing_read_error",
+                error="existing report could not be read; rerun with force=true",
+                report=None,
+                **result_base,
+            )
         return PrecloseReportRunResult(
             status="existing",
-            report=_read_report(report_path),
+            report=existing_report,
             **result_base,
         )
 

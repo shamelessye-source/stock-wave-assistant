@@ -3,6 +3,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from app.core.config import load_settings
 from app.cli.preclose_report import main as preclose_cli_main
 from app.services.preclose_report_run import run_preclose_report_once
@@ -167,6 +169,50 @@ def test_run_once_is_idempotent_for_same_report(tmp_path: Path) -> None:
     assert second.report is not None
 
 
+def test_run_once_returns_structured_error_for_corrupt_existing_report(
+    tmp_path: Path,
+) -> None:
+    settings = load_settings(
+        env={
+            "DATABASE_PATH": str(tmp_path / "app.db"),
+            "REPORT_DIR": str(tmp_path / "reports"),
+        }
+    )
+    as_of = datetime.fromisoformat("2026-07-01T14:55:00")
+    first = run_preclose_report_once(settings, as_of)
+    report_path = tmp_path / "reports" / first.file_name
+    report_path.write_text("{not-json", encoding="utf-8")
+
+    second = run_preclose_report_once(settings, as_of)
+
+    assert second.status == "existing_read_error"
+    assert second.report is None
+    assert second.error == "existing report could not be read; rerun with force=true"
+    assert report_path.read_text(encoding="utf-8") == "{not-json"
+
+
+def test_run_once_returns_structured_error_for_non_object_existing_report(
+    tmp_path: Path,
+) -> None:
+    settings = load_settings(
+        env={
+            "DATABASE_PATH": str(tmp_path / "app.db"),
+            "REPORT_DIR": str(tmp_path / "reports"),
+        }
+    )
+    as_of = datetime.fromisoformat("2026-07-01T14:55:00")
+    first = run_preclose_report_once(settings, as_of)
+    report_path = tmp_path / "reports" / first.file_name
+    report_path.write_text("[]", encoding="utf-8")
+
+    second = run_preclose_report_once(settings, as_of)
+
+    assert second.status == "existing_read_error"
+    assert second.report is None
+    assert second.error == "existing report could not be read; rerun with force=true"
+    assert report_path.read_text(encoding="utf-8") == "[]"
+
+
 def test_run_once_force_overwrites_existing_report(tmp_path: Path) -> None:
     settings = load_settings(
         env={
@@ -177,7 +223,7 @@ def test_run_once_force_overwrites_existing_report(tmp_path: Path) -> None:
     as_of = datetime.fromisoformat("2026-07-01T14:55:00")
     first = run_preclose_report_once(settings, as_of)
     report_path = tmp_path / "reports" / first.file_name
-    report_path.write_text('{"schema_version":"broken"}', encoding="utf-8")
+    report_path.write_text("{not-json", encoding="utf-8")
 
     second = run_preclose_report_once(settings, as_of, force=True)
 
@@ -235,6 +281,40 @@ def test_preclose_report_cli_runs_once(tmp_path: Path, monkeypatch, capsys) -> N
     assert payload["status"] == "generated"
     assert payload["report_id"] == "preclose_1455-2026-07-01"
     assert (tmp_path / "reports" / payload["file_name"]).exists()
+
+
+def test_preclose_report_cli_reports_invalid_as_of(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        preclose_cli_main(["--as-of", "not-a-date"])
+
+    captured = capsys.readouterr()
+    assert exc_info.value.code == 2
+    assert "--as-of must use YYYY-MM-DDTHH:MM:SS" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_preclose_report_cli_returns_one_for_service_error(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    def fail_run_once(*args, **kwargs):
+        raise RuntimeError("forced failure")
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "app.db"))
+    monkeypatch.setenv("REPORT_DIR", str(tmp_path / "reports"))
+    monkeypatch.setattr(
+        "app.cli.preclose_report.run_preclose_report_once",
+        fail_run_once,
+    )
+
+    exit_code = preclose_cli_main(["--as-of", "2026-07-01T14:55:00"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "preclose report run failed: forced failure" in captured.err
+    assert "Traceback" not in captured.err
+    assert captured.out == ""
 
 
 def write_config_dir(tmp_path: Path, preferences: str) -> Path:

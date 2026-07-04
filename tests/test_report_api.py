@@ -102,6 +102,35 @@ def test_preclose_report_run_once_api_is_idempotent(
     assert second.json()["status"] == "existing"
 
 
+def test_preclose_report_run_once_api_handles_corrupt_existing_report(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "task11.db"))
+    monkeypatch.setenv("REPORT_DIR", str(tmp_path / "reports"))
+    client = TestClient(app)
+
+    first = client.post(
+        "/api/reports/preclose/run-once",
+        json={"as_of": "2026-07-01T14:55:00"},
+    )
+    file_name = first.json()["file_name"]
+    (tmp_path / "reports" / file_name).write_text("{not-json", encoding="utf-8")
+
+    second = client.post(
+        "/api/reports/preclose/run-once",
+        json={"as_of": "2026-07-01T14:55:00"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    payload = second.json()
+    assert payload["status"] == "existing_read_error"
+    assert payload["report"] is None
+    assert payload["error"] == "existing report could not be read; rerun with force=true"
+    assert "C:\\" not in str(payload)
+
+
 def test_preclose_report_run_once_api_supports_force(
     tmp_path,
     monkeypatch,
