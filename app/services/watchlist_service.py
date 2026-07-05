@@ -23,9 +23,16 @@ def load_watchlist(path: str | Path) -> dict[str, Any]:
     stocks = config.get("stocks")
     if not isinstance(stocks, list):
         raise WatchlistConfigError("stocks_required")
+    errors = [
+        f"stocks[{index}].not_object"
+        for index, item in enumerate(stocks)
+        if not isinstance(item, Mapping)
+    ]
+    if errors:
+        raise WatchlistConfigError("invalid_watchlist", errors)
     return {
         "version": int(config.get("version") or 1),
-        "items": [_normalize_item(item) for item in stocks if isinstance(item, Mapping)],
+        "items": [_normalize_item(item) for item in stocks],
     }
 
 

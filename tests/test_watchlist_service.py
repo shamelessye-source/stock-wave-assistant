@@ -215,6 +215,32 @@ def test_load_watchlist_rejects_bad_yaml(tmp_path: Path) -> None:
         load_watchlist(watchlist_path)
 
 
+@pytest.mark.parametrize("bad_entry", ["plain-text", ["nested-list"]])
+def test_load_watchlist_rejects_non_object_stock_entries(
+    tmp_path: Path,
+    bad_entry: object,
+) -> None:
+    watchlist_path = tmp_path / "watchlist.yaml"
+    original = yaml.safe_dump(
+        {
+            "version": 1,
+            "stocks": [
+                {"name": "Alpha", "symbol": ""},
+                bad_entry,
+            ],
+        },
+        allow_unicode=True,
+        sort_keys=False,
+    )
+    watchlist_path.write_text(original, encoding="utf-8")
+
+    with pytest.raises(WatchlistConfigError) as exc_info:
+        load_watchlist(watchlist_path)
+
+    assert "stocks[1].not_object" in exc_info.value.errors
+    assert watchlist_path.read_text(encoding="utf-8") == original
+
+
 def _watchlist_item(name: str, symbol: str) -> dict[str, object]:
     return {
         "name": name,

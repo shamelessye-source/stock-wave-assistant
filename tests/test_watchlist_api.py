@@ -200,6 +200,31 @@ def test_watchlist_put_rejects_empty_or_duplicate_items_without_overwriting(
     assert (config_dir / "watchlist.yaml").read_text(encoding="utf-8") == original
 
 
+def test_watchlist_get_rejects_malformed_config_without_overwriting(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_dir = write_config_dir(tmp_path)
+    watchlist_path = config_dir / "watchlist.yaml"
+    original = """
+version: 1
+stocks:
+  - name: Alpha
+    symbol: ''
+  - not-object
+""".strip()
+    watchlist_path.write_text(original, encoding="utf-8")
+    patch_settings(monkeypatch, config_dir, tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/api/watchlist")
+
+    assert response.status_code == 422
+    assert "stocks[1].not_object" in response.json()["detail"]["errors"]
+    assert "C:\\" not in str(response.json())
+    assert watchlist_path.read_text(encoding="utf-8") == original
+
+
 def patch_settings(monkeypatch, config_dir: Path, tmp_path: Path) -> None:
     from app.core.config import load_settings
 
