@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
-import { apiGet, apiPost } from "./api/client";
+import { apiGet, apiPost, apiPut } from "./api/client";
 import type { ApiResult } from "./api/client";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -50,6 +50,27 @@ type ConfigStatus = {
     engine: string;
     configured: boolean;
   };
+};
+
+type WatchlistItem = {
+  name: string;
+  symbol: string;
+  market: string;
+  group: string;
+  theme: string;
+  enabled: boolean;
+  observation_note: string;
+  risk_note: string;
+};
+
+type WatchlistResponse = {
+  version: number;
+  items: WatchlistItem[];
+};
+
+type WatchlistValidation = {
+  valid: boolean;
+  errors: string[];
 };
 
 type IndicatorValues = {
@@ -283,6 +304,17 @@ const emptyTradeForm: TradeForm = {
   note: "",
 };
 
+const emptyWatchlistItem: WatchlistItem = {
+  name: "",
+  symbol: "",
+  market: "",
+  group: "",
+  theme: "",
+  enabled: true,
+  observation_note: "",
+  risk_note: "",
+};
+
 export function App() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [loadState, setLoadState] = useState<LoadState>("idle");
@@ -290,6 +322,10 @@ export function App() {
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [config, setConfig] = useState<ConfigStatus | null>(null);
+  const [watchlist, setWatchlist] = useState<WatchlistResponse>({
+    version: 1,
+    items: [],
+  });
   const [indicatorProvider, setIndicatorProvider] = useState("mock");
   const [indicators, setIndicators] = useState<IndicatorRow[]>([]);
   const [trades, setTrades] = useState<TradeRecord[]>([]);
@@ -303,6 +339,8 @@ export function App() {
   const [formError, setFormError] = useState("");
   const [submitState, setSubmitState] = useState("等待录入");
   const [explainState, setExplainState] = useState("等待生成");
+  const [watchlistState, setWatchlistState] = useState("等待编辑");
+  const [watchlistError, setWatchlistError] = useState("");
 
   const stateDistribution = precloseReport?.state_distribution ?? {};
   const healthLabel = health?.status === "ok" ? "正常跟踪" : "数据不足";
@@ -317,6 +355,7 @@ export function App() {
     const [
       healthResult,
       configResult,
+      watchlistResult,
       indicatorResult,
       tradeResult,
       pnlResult,
@@ -326,6 +365,7 @@ export function App() {
     ] = await Promise.all([
       apiGet<HealthResponse>("/api/health"),
       apiGet<ConfigStatus>("/api/config/status"),
+      apiGet<WatchlistResponse>("/api/watchlist"),
       apiGet<IndicatorResponse>("/api/indicators/snapshot"),
       apiGet<TradeResponse>("/api/ledger/trades"),
       apiGet<PnlResponse>("/api/ledger/summary"),
@@ -336,6 +376,14 @@ export function App() {
 
     applyResult("health", healthResult, setHealth);
     applyResult("config", configResult, setConfig);
+    if (watchlistResult.ok) {
+      setWatchlist(watchlistResult.data);
+      setWatchlistError("");
+      clearError("watchlist");
+    } else {
+      setWatchlist({ version: 1, items: [] });
+      setError("watchlist", watchlistResult.error);
+    }
     if (indicatorResult.ok) {
       setIndicators(indicatorResult.data.items);
       setIndicatorProvider(indicatorResult.data.provider);
@@ -367,7 +415,7 @@ export function App() {
       setError("wave", waveResult.error);
     }
     applyResult("report", reportResult, setPrecloseReport);
-    setLoadState(hasAnyError([healthResult, configResult, indicatorResult, tradeResult, pnlResult, riskResult, waveResult, reportResult]) ? "error" : "ready");
+    setLoadState(hasAnyError([healthResult, configResult, watchlistResult, indicatorResult, tradeResult, pnlResult, riskResult, waveResult, reportResult]) ? "error" : "ready");
   }
 
   async function refreshPortfolio() {
@@ -461,6 +509,78 @@ export function App() {
     await refreshPortfolio();
   }
 
+  function updateWatchlistItem(
+    index: number,
+    field: keyof WatchlistItem,
+    value: string | boolean,
+  ) {
+    setWatchlist((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+  }
+
+  function addWatchlistItem() {
+    setWatchlist((current) => ({
+      ...current,
+      items: [...current.items, { ...emptyWatchlistItem }],
+    }));
+    setWatchlistState("编辑中");
+  }
+
+  function removeWatchlistItem(index: number) {
+    setWatchlist((current) => ({
+      ...current,
+      items: current.items.filter((_, itemIndex) => itemIndex !== index),
+    }));
+    setWatchlistState("编辑中");
+  }
+
+  async function validateWatchlist() {
+    const localError = validateWatchlistDraft(watchlist);
+    if (localError) {
+      setWatchlistError(localError);
+      setWatchlistState("校验失败");
+      return;
+    }
+    const result = await apiPost<WatchlistResponse, WatchlistValidation>(
+      "/api/watchlist/validate",
+      watchlist,
+    );
+    if (!result.ok) {
+      setWatchlistError("后端暂不可用，无法校验配置");
+      setWatchlistState("校验失败");
+      return;
+    }
+    setWatchlistError(result.data.errors.join(" / "));
+    setWatchlistState(result.data.valid ? "校验通过" : "校验失败");
+  }
+
+  async function saveWatchlist() {
+    const localError = validateWatchlistDraft(watchlist);
+    if (localError) {
+      setWatchlistError(localError);
+      setWatchlistState("保存失败");
+      return;
+    }
+    setWatchlistState("保存中");
+    const result = await apiPut<WatchlistResponse, WatchlistResponse>(
+      "/api/watchlist",
+      watchlist,
+    );
+    if (!result.ok) {
+      setWatchlistError("配置保存失败，请检查名称、代码和市场格式");
+      setWatchlistState("保存失败");
+      return;
+    }
+    setWatchlist(result.data);
+    setWatchlistError("");
+    setWatchlistState("已保存");
+    await loadAll();
+  }
+
   async function explainReport() {
     setExplainState("生成中");
     const result = await apiPost<
@@ -529,7 +649,20 @@ export function App() {
         />
       );
     }
-    return <SettingsView config={config} error={errors.config} />;
+    return (
+      <SettingsWithWatchlist
+        config={config}
+        error={errors.config}
+        watchlist={watchlist}
+        watchlistError={watchlistError || errors.watchlist}
+        watchlistState={watchlistState}
+        onAddWatchlistItem={addWatchlistItem}
+        onRemoveWatchlistItem={removeWatchlistItem}
+        onSaveWatchlist={() => void saveWatchlist()}
+        onValidateWatchlist={() => void validateWatchlist()}
+        onWatchlistItemChange={updateWatchlistItem}
+      />
+    );
   }
 
   return (
@@ -826,6 +959,151 @@ function ReportView(props: {
   );
 }
 
+function SettingsWithWatchlist(props: {
+  config: ConfigStatus | null;
+  error?: string;
+  watchlist: WatchlistResponse;
+  watchlistError?: string;
+  watchlistState: string;
+  onAddWatchlistItem: () => void;
+  onRemoveWatchlistItem: (index: number) => void;
+  onSaveWatchlist: () => void;
+  onValidateWatchlist: () => void;
+  onWatchlistItemChange: (
+    index: number,
+    field: keyof WatchlistItem,
+    value: string | boolean,
+  ) => void;
+}) {
+  return (
+    <section className="view-stack">
+      <SettingsView config={props.config} error={props.error} />
+      <WatchlistEditor
+        error={props.watchlistError}
+        state={props.watchlistState}
+        value={props.watchlist}
+        onAdd={props.onAddWatchlistItem}
+        onChange={props.onWatchlistItemChange}
+        onRemove={props.onRemoveWatchlistItem}
+        onSave={props.onSaveWatchlist}
+        onValidate={props.onValidateWatchlist}
+      />
+    </section>
+  );
+}
+
+function WatchlistEditor(props: {
+  value: WatchlistResponse;
+  state: string;
+  error?: string;
+  onAdd: () => void;
+  onChange: (index: number, field: keyof WatchlistItem, value: string | boolean) => void;
+  onRemove: (index: number) => void;
+  onSave: () => void;
+  onValidate: () => void;
+}) {
+  return (
+    <section className="panel">
+      <PanelHeading title="自选股配置" status={props.state} />
+      {props.error ? <div className="notice watchlist-notice">{props.error}</div> : null}
+      <div className="watchlist-editor">
+        {props.value.items.length === 0 ? <EmptyState text="暂无配置项" /> : null}
+        {props.value.items.map((item, index) => (
+          <article className="watchlist-row" key={`${item.name}-${index}`}>
+            <label className="inline-check">
+              <input
+                checked={item.enabled}
+                type="checkbox"
+                onChange={(event) =>
+                  props.onChange(index, "enabled", event.target.checked)
+                }
+              />
+              <span>{item.enabled ? "启用" : "停用"}</span>
+            </label>
+            <div className="watchlist-grid">
+              <WatchlistField
+                label="名称"
+                value={item.name}
+                onChange={(value) => props.onChange(index, "name", value)}
+              />
+              <WatchlistField
+                label="代码"
+                value={item.symbol}
+                onChange={(value) => props.onChange(index, "symbol", value.toUpperCase())}
+              />
+              <WatchlistField
+                label="市场"
+                value={item.market}
+                onChange={(value) => props.onChange(index, "market", value.toUpperCase())}
+              />
+              <WatchlistField
+                label="分组"
+                value={item.group}
+                onChange={(value) => props.onChange(index, "group", value)}
+              />
+              <WatchlistField
+                label="主题"
+                value={item.theme}
+                onChange={(value) => props.onChange(index, "theme", value)}
+              />
+              <label>
+                <span>观察理由</span>
+                <textarea
+                  rows={2}
+                  value={item.observation_note}
+                  onChange={(event) =>
+                    props.onChange(index, "observation_note", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>风险点</span>
+                <textarea
+                  rows={2}
+                  value={item.risk_note}
+                  onChange={(event) =>
+                    props.onChange(index, "risk_note", event.target.value)
+                  }
+                />
+              </label>
+            </div>
+            <div className="row-actions">
+              <button type="button" className="secondary-button" onClick={() => props.onRemove(index)}>
+                删除
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="form-actions watchlist-actions">
+        <button type="button" onClick={props.onAdd}>
+          新增标的
+        </button>
+        <button type="button" className="secondary-button" onClick={props.onValidate}>
+          校验格式
+        </button>
+        <button type="button" onClick={props.onSave}>
+          保存配置
+        </button>
+        <span>{props.error || props.state}</span>
+      </div>
+    </section>
+  );
+}
+
+function WatchlistField(props: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label>
+      <span>{props.label}</span>
+      <input value={props.value} onChange={(event) => props.onChange(event.target.value)} />
+    </label>
+  );
+}
+
 function SettingsView(props: { config: ConfigStatus | null; error?: string }) {
   return (
     <section className="panel">
@@ -943,6 +1221,42 @@ function validateTradeForm(form: TradeForm): string {
   }
   if (Number(form.fee) < 0 || Number.isNaN(Number(form.fee))) {
     return "费用不能为负";
+  }
+  return "";
+}
+
+function validateWatchlistDraft(value: WatchlistResponse): string {
+  const symbolPattern = /^\d{6}\.(SH|SZ|BJ)$/;
+  const validMarkets = new Set(["", "SH", "SZ", "BJ"]);
+  if (value.items.length === 0) {
+    return "至少保留 1 个自选股条目";
+  }
+  const names = new Set<string>();
+  const symbols = new Set<string>();
+  for (let index = 0; index < value.items.length; index += 1) {
+    const item = value.items[index];
+    const name = item.name.trim();
+    if (!name) {
+      return `第 ${index + 1} 行名称不能为空`;
+    }
+    if (names.has(name)) {
+      return `名称重复：${name}`;
+    }
+    names.add(name);
+    const symbol = item.symbol.trim().toUpperCase();
+    if (symbol && !symbolPattern.test(symbol)) {
+      return `第 ${index + 1} 行代码格式应类似 600000.SH`;
+    }
+    if (symbol && symbols.has(symbol)) {
+      return `代码重复：${symbol}`;
+    }
+    if (symbol) {
+      symbols.add(symbol);
+    }
+    const market = item.market.trim().toUpperCase();
+    if (!validMarkets.has(market)) {
+      return `第 ${index + 1} 行市场仅支持 SH/SZ/BJ 或留空`;
+    }
   }
   return "";
 }

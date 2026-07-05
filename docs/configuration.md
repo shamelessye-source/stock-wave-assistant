@@ -32,6 +32,23 @@ REPORT_DIR=./data/reports
 
 `./data/app.db` 和 `./data/reports` 都是项目相对路径，已被 `.gitignore` 忽略。测试会使用临时目录，不污染真实数据目录。
 
+## 自选股配置编辑
+
+普通用户可以在本地 Web 的“设置/自检”页查看和维护自选股清单，不需要直接编辑 YAML。后端仍以 `config/watchlist.yaml` 为本地事实来源，保存时先做格式校验，再通过临时文件替换目标文件，避免半写入配置。
+
+Web/API 字段：
+
+- `name`：名称，必填。
+- `symbol`：代码，可留空；填写时使用 `600000.SH`、`000001.SZ`、`430000.BJ` 这类格式。
+- `market`：市场，可留空，支持 `SH`、`SZ`、`BJ`。
+- `group`：分组。
+- `theme`：主题；写回 YAML 时也会同步到兼容字段 `direction`。
+- `enabled`：是否启用。
+- `observation_note`：观察理由；写回 YAML 时也会同步到兼容字段 `watch_reason`。
+- `risk_note`：风险点；写回 YAML 时也会同步到兼容字段 `risk_points`。
+
+接口只做本地格式校验。默认不会访问网络，不调用真实 AkShare，也不会按名称自动补代码。
+
 ## Codex CLI
 
 默认解释层使用 fake provider：

@@ -11,6 +11,7 @@ def test_web_mvp_has_unified_api_client() -> None:
     text = api_client.read_text(encoding="utf-8")
     assert "export async function apiGet" in text
     assert "export async function apiPost" in text
+    assert "export async function apiPut" in text
     assert "ApiResult" in text
 
 
@@ -27,3 +28,11 @@ def test_web_mvp_declares_required_tool_tabs() -> None:
         "settings",
     ]:
         assert f'id: "{tab_id}"' in app
+
+
+def test_web_mvp_exposes_watchlist_editor() -> None:
+    app = (ROOT / "web" / "src" / "App.tsx").read_text(encoding="utf-8")
+
+    assert "WatchlistEditor" in app
+    assert '"/api/watchlist"' in app
+    assert '"/api/watchlist/validate"' in app
