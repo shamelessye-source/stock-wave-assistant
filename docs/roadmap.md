@@ -15,13 +15,14 @@
 - Task 9：测试收口、README 和文档整理。
 - Task 10：AkShare adapter 和本地缓存。
 - Task 11：交易日历本地配置、14:55 run-once 和报告落盘。
+- Task 12：自选股配置编辑、格式校验和本地 Web 维护入口。
 
 ## 近期待办
 
 - 增加更清晰的前端 smoke 脚本，便于 CI 或本地一键验证。
 - 扩展 AkShare adapter 的真实环境 smoke 记录，但默认测试继续使用 mock/fake。
 - 后续可接 Windows Task Scheduler 或轻量常驻 scheduler。
-- 增加更完整的配置 schema 文档和示例。
+- 增加更完整的配置导入/导出说明和示例。
 
 ## 暂不进入 MVP 的事项
 

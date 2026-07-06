@@ -11,6 +11,18 @@ GET /api/config/status
 
 `/api/config/status` 返回 provider、mock 模式、Codex enabled、模型、timeout、sandbox 和自检状态。它只展示安全摘要。
 
+## 自选股配置
+
+```text
+GET /api/watchlist
+PUT /api/watchlist
+POST /api/watchlist/validate
+```
+
+`GET /api/watchlist` 返回 Web 可编辑的自选股配置，不包含本机绝对路径。`PUT /api/watchlist` 会校验并原子写回 `config/watchlist.yaml`。`POST /api/watchlist/validate` 只做格式校验，不访问网络，不调用真实 AkShare。
+
+字段包括：`name`、`symbol`、`market`、`group`、`theme`、`enabled`、`observation_note`、`risk_note`。代码可以留空；如果填写，应使用 `600000.SH`、`000001.SZ` 或 `430000.BJ` 这类格式。系统不会按名称自动猜代码。
+
 ## 行情与指标
 
 ```text

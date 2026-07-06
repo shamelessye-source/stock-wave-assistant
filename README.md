@@ -6,7 +6,7 @@
 
 ## 功能清单
 
-- 自选股配置：读取 `config/watchlist.yaml`。
+- 自选股配置：读取 `config/watchlist.yaml`，也可在本地 Web 的设置页维护。
 - Mock 行情：默认生成稳定日线样例，不访问网络。
 - AkShare adapter：可选真实日线数据源，必须显式开启。
 - 基础指标：MA20、MA60、5/10/20 日动量、最大回撤、简化 ATR、成交量比值。
@@ -58,6 +58,7 @@ py -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/api/health
 Invoke-RestMethod http://127.0.0.1:8000/api/config/status
+Invoke-RestMethod http://127.0.0.1:8000/api/watchlist
 Invoke-RestMethod "http://127.0.0.1:8000/api/reports/preclose?as_of=2026-07-01T14:55:00"
 Invoke-RestMethod -Method Post -ContentType "application/json" -Body '{"as_of":"2026-07-01T14:55:00"}' http://127.0.0.1:8000/api/reports/preclose/run-once
 ```
@@ -103,6 +104,16 @@ rg -n ($terms -join "|") app web tests config docs README.md
 
 SQLite 默认路径是项目相对路径 `./data/app.db`。该目录已被 `.gitignore` 忽略。
 报告默认写入项目相对路径 `./data/reports`。该目录已被 `.gitignore` 忽略。
+
+自选股清单可以通过 Web 的“设置/自检”页维护，也可以通过 API 读取和保存：
+
+```text
+GET /api/watchlist
+PUT /api/watchlist
+POST /api/watchlist/validate
+```
+
+字段包括 `name`、`symbol`、`market`、`group`、`theme`、`enabled`、`observation_note` 和 `risk_note`。`symbol` 可以留空；如果填写，应使用类似 `600000.SH`、`000001.SZ`、`430000.BJ` 的格式。系统只做格式校验，不做全市场搜索，也不会按名称自动补代码。
 
 ## Codex CLI 模式
 

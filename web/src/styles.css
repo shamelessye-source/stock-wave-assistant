@@ -401,6 +401,82 @@ th {
   background: #1d483f;
 }
 
+.watchlist-notice {
+  margin: 16px 16px 0;
+}
+
+.watchlist-editor {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.watchlist-row {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 14px;
+  border: 1px solid #d5dfdc;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.watchlist-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.watchlist-grid label,
+.inline-check {
+  display: grid;
+  gap: 6px;
+  color: #4a5c58;
+  font-size: 13px;
+}
+
+.inline-check {
+  align-content: start;
+  grid-template-columns: auto 1fr;
+  padding-top: 28px;
+}
+
+.watchlist-grid input,
+.watchlist-grid textarea {
+  width: 100%;
+  border: 1px solid #c7d7d2;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2528;
+  font: inherit;
+  padding: 9px 10px;
+}
+
+.watchlist-grid textarea {
+  resize: vertical;
+}
+
+.row-actions {
+  display: flex;
+  align-items: start;
+}
+
+.form-actions .secondary-button,
+.row-actions .secondary-button {
+  border-color: #c7d7d2;
+  background: #ffffff;
+  color: #2b4d45;
+}
+
+.form-actions .secondary-button:hover,
+.row-actions .secondary-button:hover {
+  background: #f3f7f5;
+}
+
+.watchlist-actions {
+  padding: 0 16px 16px;
+}
+
 .report-lists {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -489,7 +565,13 @@ th {
   }
 
   .ledger-grid,
-  .trade-form {
+  .trade-form,
+  .watchlist-row,
+  .watchlist-grid {
     grid-template-columns: 1fr;
+  }
+
+  .inline-check {
+    padding-top: 0;
   }
 }

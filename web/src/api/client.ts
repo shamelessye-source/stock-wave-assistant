@@ -21,6 +21,19 @@ export async function apiPost<TRequest, TResponse>(
   });
 }
 
+export async function apiPut<TRequest, TResponse>(
+  path: string,
+  body: TRequest,
+): Promise<ApiResult<TResponse>> {
+  return request<TResponse>(path, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 async function request<T>(path: string, init: RequestInit): Promise<ApiResult<T>> {
   try {
     const response = await fetch(`${API_BASE}${path}`, init);

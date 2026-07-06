@@ -7,6 +7,7 @@ from app.api.routes.ledger import router as ledger_router
 from app.api.routes.market import router as market_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.risk import router as risk_router
+from app.api.routes.watchlist import router as watchlist_router
 from app.api.routes.wave import router as wave_router
 
 
@@ -22,11 +23,12 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5173",
     ],
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
 
 app.include_router(config_router)
+app.include_router(watchlist_router)
 app.include_router(market_router)
 app.include_router(indicators_router)
 app.include_router(ledger_router)
