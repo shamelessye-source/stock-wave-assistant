@@ -17,3 +17,4 @@ data/cache/
 data/reports/
 
 .env
+.local/
