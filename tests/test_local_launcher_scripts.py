@@ -405,6 +405,53 @@ def test_browser_open_failure_keeps_services_running(
         _cleanup_launcher_processes(api_port, web_port)
 
 
+def test_browser_warning_stays_nonterminating_when_warning_preference_is_stop(
+    launcher_project: Path,
+) -> None:
+    api_port = _free_port()
+    web_port = _free_port()
+    stop_script = launcher_project / "scripts" / "stop-local.ps1"
+    wrapper_script = launcher_project / "warning-stop-launcher.ps1"
+    wrapper_script.write_text(
+        '$WarningPreference = "Stop"\n'
+        '& (Join-Path $PSScriptRoot "scripts\\start-local.ps1") @args\n'
+        "exit $LASTEXITCODE\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["STOCK_WAVE_LAUNCHER_TEST_FAILURE"] = "browser_open"
+
+    try:
+        start = _run_script(
+            wrapper_script,
+            "-ApiPort",
+            str(api_port),
+            "-WebPort",
+            str(web_port),
+            cwd=launcher_project,
+            env=env,
+        )
+        output = start.stdout + start.stderr
+        assert start.returncode == 0, output
+        assert "Browser could not be opened" in output
+        assert f"http://127.0.0.1:{web_port}" in output
+
+        state_path = launcher_project / ".local" / "local-launcher.json"
+        state = json.loads(state_path.read_text(encoding="utf-8-sig"))
+        assert state["backend"]["port"] == api_port
+        assert state["frontend"]["port"] == web_port
+
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{api_port}/api/health", timeout=5
+        ) as response:
+            assert json.load(response)["status"] == "ok"
+        with urllib.request.urlopen(f"http://127.0.0.1:{web_port}", timeout=5) as response:
+            assert response.status == 200
+    finally:
+        _run_script(stop_script, cwd=launcher_project)
+        _cleanup_launcher_processes(api_port, web_port)
+
+
 @pytest.mark.parametrize(
     "launcher_project", ["launcher project with spaces"], indirect=True
 )

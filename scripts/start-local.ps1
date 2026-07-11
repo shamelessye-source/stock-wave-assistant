@@ -218,7 +218,7 @@ try {
             Invoke-TestFailure -Point "browser_open"
             Start-Process $WebUrl
         } catch {
-            Write-Warning "Browser could not be opened. Open $WebUrl manually. $($_.Exception.Message)"
+            Write-Warning "Browser could not be opened. Open $WebUrl manually. $($_.Exception.Message)" -WarningAction Continue
         }
     }
 } catch {
