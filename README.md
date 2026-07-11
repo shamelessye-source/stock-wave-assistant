@@ -55,13 +55,21 @@ py -m pip install -e ".[akshare,test]"
 scripts\start-local.ps1
 ```
 
-脚本会检查 Python、Node.js、npm 和本地依赖，启动 FastAPI 后端和 Vite 前端，并打开 `http://127.0.0.1:5173`。当前应用仍是本地 Web 应用，不是云端网站。
+脚本会检查 Python、Node.js、npm 和本地依赖，启动 FastAPI 后端和 Vite 前端，并打开 `http://127.0.0.1:5173`。当前应用仍是本地 Web 应用，不是云端网站。若已有 launcher 状态文件，脚本会拒绝重复启动并要求先运行停止脚本；启动中途失败时只回滚本次启动的进程。
+
+如果 PowerShell 执行策略阻止直接运行脚本，可使用：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-local.ps1
+```
 
 停止本地应用：
 
 ```powershell
 scripts\stop-local.ps1
 ```
+
+停止脚本也可以通过 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stop-local.ps1` 运行。
 
 如果 `8000` 或 `5173` 端口已被占用，脚本会停止并给出提示。可先运行停止脚本，或改用空闲端口：
 

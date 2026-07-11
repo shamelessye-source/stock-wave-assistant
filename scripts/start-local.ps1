@@ -17,6 +17,11 @@ $FrontendLog = Join-Path $StateDir "frontend.log"
 $FrontendErrorLog = Join-Path $StateDir "frontend.err.log"
 $ApiUrl = "http://${BindHost}:${ApiPort}"
 $WebUrl = "http://${BindHost}:${WebPort}"
+$StatePathExistedAtStart = Test-Path -LiteralPath $StatePath
+$StateWriteAttempted = $false
+$StateWrittenByThisRun = $false
+$backend = $null
+$frontend = $null
 
 function Require-Command {
     param(
@@ -79,7 +84,40 @@ function Wait-HttpReady {
     throw "$Name did not become ready at $Url. Check logs under .local and run scripts\stop-local.ps1 before retrying."
 }
 
+function Stop-StartedProcess {
+    param(
+        [string]$Label,
+        [object]$Process
+    )
+
+    if ($null -eq $Process) {
+        return $null
+    }
+
+    try {
+        $Process.Refresh()
+        if (-not $Process.HasExited) {
+            Stop-Process -Id $Process.Id -Force -ErrorAction Stop
+        }
+        return $null
+    } catch {
+        return "$Label PID $($Process.Id): $($_.Exception.Message)"
+    }
+}
+
+function Invoke-TestFailure {
+    param([string]$Point)
+
+    if ($env:STOCK_WAVE_LAUNCHER_TEST_FAILURE -eq $Point) {
+        throw "Injected launcher failure at $Point."
+    }
+}
+
 try {
+    if ($StatePathExistedAtStart) {
+        throw "Launcher state already exists at .local\local-launcher.json. Run scripts\stop-local.ps1 before starting again."
+    }
+
     Set-Location $ProjectRoot
     New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
 
@@ -100,10 +138,6 @@ try {
     Assert-PortAvailable -Name "Api" -Port $ApiPort
     Assert-PortAvailable -Name "Web" -Port $WebPort
 
-    if (Test-Path -LiteralPath $StatePath) {
-        Write-Warning "Existing launcher state file found at .local\local-launcher.json. If this is stale, run scripts\stop-local.ps1."
-    }
-
     Write-Host "Starting backend at $ApiUrl ..."
     $backend = Start-Process `
         -FilePath "py" `
@@ -118,9 +152,11 @@ try {
     $env:VITE_API_BASE_URL = $ApiUrl
     try {
         Write-Host "Starting web app at $WebUrl ..."
+        Invoke-TestFailure -Point "frontend_start"
+        $ViteScriptArgument = "`"$ViteScript`""
         $frontend = Start-Process `
             -FilePath "node" `
-            -ArgumentList @($ViteScript, "--host", $BindHost, "--port", $WebPort.ToString()) `
+            -ArgumentList @($ViteScriptArgument, "--host", $BindHost, "--port", $WebPort.ToString()) `
             -WorkingDirectory $ProjectRoot `
             -PassThru `
             -WindowStyle Hidden `
@@ -130,7 +166,7 @@ try {
         $env:VITE_API_BASE_URL = $previousApiBase
     }
 
-    [pscustomobject]@{
+    $state = [pscustomobject]@{
         projectRoot = $ProjectRoot
         startedAt = (Get-Date).ToString("o")
         backend = [pscustomobject]@{
@@ -147,7 +183,11 @@ try {
             log = ".local/frontend.log"
             errorLog = ".local/frontend.err.log"
         }
-    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $StatePath -Encoding UTF8
+    }
+    $StateWriteAttempted = $true
+    Invoke-TestFailure -Point "state_write"
+    $state | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $StatePath -Encoding UTF8
+    $StateWrittenByThisRun = $true
 
     Wait-HttpReady -Name "Backend" -Url "$ApiUrl/api/health"
     Wait-HttpReady -Name "Web app" -Url $WebUrl
@@ -165,6 +205,38 @@ try {
         Start-Process $WebUrl
     }
 } catch {
-    Write-Error $_.Exception.Message
+    $startupError = $_.Exception.Message
+    $cleanupErrors = @()
+
+    foreach ($entry in @(
+        @{ label = "frontend"; process = $frontend },
+        @{ label = "backend"; process = $backend }
+    )) {
+        $cleanupError = Stop-StartedProcess `
+            -Label $entry.label `
+            -Process $entry.process
+        if ($null -ne $cleanupError) {
+            $cleanupErrors += $cleanupError
+        }
+    }
+
+    $keepStateForRetry = $StateWrittenByThisRun -and $cleanupErrors.Count -gt 0
+    if (
+        -not $StatePathExistedAtStart -and
+        $StateWriteAttempted -and
+        -not $keepStateForRetry -and
+        (Test-Path -LiteralPath $StatePath)
+    ) {
+        try {
+            Remove-Item -LiteralPath $StatePath -Force -ErrorAction Stop
+        } catch {
+            $cleanupErrors += "state file: $($_.Exception.Message)"
+        }
+    }
+
+    Write-Error $startupError -ErrorAction Continue
+    if ($cleanupErrors.Count -gt 0) {
+        Write-Warning "Startup rollback was incomplete: $($cleanupErrors -join '; '). Check .local logs and run scripts\stop-local.ps1 if a launcher state file remains."
+    }
     exit 1
 }
