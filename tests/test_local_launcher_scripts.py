@@ -216,6 +216,15 @@ def test_launcher_scripts_have_valid_powershell_syntax() -> None:
         assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_browser_open_has_nonfatal_failure_boundary() -> None:
+    text = START_SCRIPT.read_text(encoding="utf-8")
+    browser_section = text[text.index("if (-not $NoBrowser)") :]
+
+    assert 'Invoke-TestFailure -Point "browser_open"' in browser_section
+    assert "Browser could not be opened" in browser_section
+    assert "Open $WebUrl manually" in browser_section
+
+
 def test_start_refuses_existing_state_without_changing_it(
     launcher_project: Path,
 ) -> None:
@@ -295,9 +304,104 @@ def test_state_write_failure_rolls_back_both_processes(
         )
 
         assert result.returncode != 0
+        assert "after creating incomplete state file" in result.stdout + result.stderr
         assert not (launcher_project / ".local" / "local-launcher.json").exists()
         assert _wait_for_launcher_processes_to_stop(api_port, web_port)
     finally:
+        _cleanup_launcher_processes(api_port, web_port)
+
+
+def test_state_write_failure_injection_writes_incomplete_file_before_throw() -> None:
+    text = START_SCRIPT.read_text(encoding="utf-8")
+
+    incomplete_write = 'Set-Content -LiteralPath $StatePath -Value \'{"incomplete":\''
+    injected_error = "after creating incomplete state file"
+    assert incomplete_write in text
+    assert injected_error in text
+    assert text.index(incomplete_write) < text.index(injected_error)
+
+
+def test_failure_injection_is_ignored_without_pytest_context(
+    launcher_project: Path,
+) -> None:
+    api_port = _free_port()
+    web_port = _free_port()
+    start_script = launcher_project / "scripts" / "start-local.ps1"
+    stop_script = launcher_project / "scripts" / "stop-local.ps1"
+    env = os.environ.copy()
+    env.pop("PYTEST_CURRENT_TEST", None)
+    env["STOCK_WAVE_LAUNCHER_TEST_FAILURE"] = "frontend_start"
+
+    try:
+        start = _run_script(
+            start_script,
+            "-ApiPort",
+            str(api_port),
+            "-WebPort",
+            str(web_port),
+            "-NoBrowser",
+            cwd=launcher_project,
+            env=env,
+        )
+        assert start.returncode == 0, start.stdout + start.stderr
+        assert (launcher_project / ".local" / "local-launcher.json").exists()
+
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{api_port}/api/health", timeout=5
+        ) as response:
+            assert json.load(response)["status"] == "ok"
+        with urllib.request.urlopen(f"http://127.0.0.1:{web_port}", timeout=5) as response:
+            assert response.status == 200
+    finally:
+        state_path = launcher_project / ".local" / "local-launcher.json"
+        if state_path.exists():
+            _run_script(stop_script, cwd=launcher_project)
+        _cleanup_launcher_processes(api_port, web_port)
+
+
+def test_browser_open_failure_keeps_services_running(
+    launcher_project: Path,
+) -> None:
+    api_port = _free_port()
+    web_port = _free_port()
+    start_script = launcher_project / "scripts" / "start-local.ps1"
+    stop_script = launcher_project / "scripts" / "stop-local.ps1"
+    env = os.environ.copy()
+    env["STOCK_WAVE_LAUNCHER_TEST_FAILURE"] = "browser_open"
+
+    try:
+        start = _run_script(
+            start_script,
+            "-ApiPort",
+            str(api_port),
+            "-WebPort",
+            str(web_port),
+            cwd=launcher_project,
+            env=env,
+        )
+        output = start.stdout + start.stderr
+        assert start.returncode == 0, output
+        assert "Browser could not be opened" in output
+        assert f"http://127.0.0.1:{web_port}" in output
+
+        state_path = launcher_project / ".local" / "local-launcher.json"
+        state = json.loads(state_path.read_text(encoding="utf-8-sig"))
+        assert state["backend"]["port"] == api_port
+        assert state["frontend"]["port"] == web_port
+
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{api_port}/api/health", timeout=5
+        ) as response:
+            assert json.load(response)["status"] == "ok"
+        with urllib.request.urlopen(f"http://127.0.0.1:{web_port}", timeout=5) as response:
+            assert response.status == 200
+
+        stop = _run_script(stop_script, cwd=launcher_project)
+        assert stop.returncode == 0, stop.stdout + stop.stderr
+    finally:
+        state_path = launcher_project / ".local" / "local-launcher.json"
+        if state_path.exists():
+            _run_script(stop_script, cwd=launcher_project)
         _cleanup_launcher_processes(api_port, web_port)
 
 

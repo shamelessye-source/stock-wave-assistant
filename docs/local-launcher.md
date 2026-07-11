@@ -38,6 +38,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-local.ps1
 - 把本次启动的进程信息写入 `.local/local-launcher.json`。
 
 如果启动过程中发生错误，脚本会按相反顺序停止本次已经启动的进程，并删除本次产生的不完整状态文件。它不会扫描或批量停止其他 Python、Node 进程。项目路径包含空格时也可以直接使用该脚本。
+如果浏览器无法自动打开，脚本只输出 warning 和可手动访问的 URL，已启动的服务和状态文件会继续保留。
 
 ## 停止应用
 

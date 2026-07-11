@@ -105,10 +105,19 @@ function Stop-StartedProcess {
     }
 }
 
+function Test-InjectedFailure {
+    param([string]$Point)
+
+    return (
+        -not [string]::IsNullOrWhiteSpace($env:PYTEST_CURRENT_TEST) -and
+        $env:STOCK_WAVE_LAUNCHER_TEST_FAILURE -eq $Point
+    )
+}
+
 function Invoke-TestFailure {
     param([string]$Point)
 
-    if ($env:STOCK_WAVE_LAUNCHER_TEST_FAILURE -eq $Point) {
+    if (Test-InjectedFailure -Point $Point) {
         throw "Injected launcher failure at $Point."
     }
 }
@@ -185,7 +194,10 @@ try {
         }
     }
     $StateWriteAttempted = $true
-    Invoke-TestFailure -Point "state_write"
+    if (Test-InjectedFailure -Point "state_write") {
+        Set-Content -LiteralPath $StatePath -Value '{"incomplete":' -Encoding UTF8
+        throw "Injected launcher failure at state_write after creating incomplete state file."
+    }
     $state | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $StatePath -Encoding UTF8
     $StateWrittenByThisRun = $true
 
@@ -202,7 +214,12 @@ try {
     Write-Host ""
 
     if (-not $NoBrowser) {
-        Start-Process $WebUrl
+        try {
+            Invoke-TestFailure -Point "browser_open"
+            Start-Process $WebUrl
+        } catch {
+            Write-Warning "Browser could not be opened. Open $WebUrl manually. $($_.Exception.Message)"
+        }
     }
 } catch {
     $startupError = $_.Exception.Message
